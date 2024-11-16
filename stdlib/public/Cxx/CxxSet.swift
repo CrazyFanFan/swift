@@ -30,6 +30,9 @@ public protocol CxxSet<Element>: ExpressibleByArrayLiteral {
   mutating func __insertUnsafe(_ element: Element) -> InsertionResult
 
   func count(_ element: Element) -> Size
+
+  @discardableResult
+  mutating func erase(_ key: Element) -> Size
 }
 
 extension CxxSet {
@@ -74,17 +77,45 @@ public protocol CxxUniqueSet<Element>: CxxSet {
   override associatedtype InsertionResult
     where InsertionResult: CxxPair<RawMutableIterator, Bool>
 
-  @discardableResult
-  mutating func __findUnsafe(_ value: Element) -> RawIterator
+  func size() -> Size
+  func empty() -> CBool
 
-  @discardableResult
+  func __beginUnsafe() -> RawIterator
+  func __endUnsafe() -> RawIterator
+  func __findUnsafe(_ value: Element) -> RawIterator
+
+  #if os(Linux)
   mutating func __eraseUnsafe(_ iter: RawIterator) -> RawMutableIterator
+  #else
+  mutating func __endMutatingUnsafe() -> RawMutableIterator
+  mutating func __findMutatingUnsafe(_ value: Element) -> RawMutableIterator
 
   @discardableResult
-  mutating func __endUnsafe() -> RawIterator
+  mutating func __eraseUnsafe(_ iter: RawMutableIterator) -> RawMutableIterator
+  #endif
 }
 
 extension CxxUniqueSet {
+  @inlinable
+  public var isEmpty: Bool {
+    empty()
+  }
+
+  public func filter(_ isIncluded: (_ element: Element) throws -> Bool) rethrows -> Self {
+    var filteredSet = Self.init()
+    var iterator = self.__beginUnsafe()
+    let endIterator = self.__endUnsafe()
+  
+    while iterator != endIterator {
+      let element = iterator.pointee
+      if try isIncluded(element) {
+        filteredSet.__insertUnsafe(element) 
+      }
+      iterator = iterator.successor()
+    }
+    return filteredSet
+  }
+  
   /// Inserts the given element in the set if it is not already present.
   ///
   /// If an element equal to `newMember` is already contained in the set, this
@@ -112,6 +143,7 @@ extension CxxUniqueSet {
   @discardableResult
   @inlinable
   public mutating func remove(_ member: Element) -> Element? {
+#if os(Linux)
     let iter = self.__findUnsafe(member)
     guard iter != self.__endUnsafe() else {
       return nil
@@ -119,5 +151,259 @@ extension CxxUniqueSet {
     let value = iter.pointee
     self.__eraseUnsafe(iter)
     return value
+#else
+    let iter = self.__findMutatingUnsafe(member)
+    guard iter != self.__endMutatingUnsafe() else {
+      return nil
+    }
+    let value = iter.pointee
+    self.__eraseUnsafe(iter)
+    return value
+#endif
+  }
+
+  @inlinable
+  public __consuming func union<T: CxxUniqueSet>(_ other: __owned T) -> Self where T.Element == Element {
+    var result = self
+    result.formUnion(other)
+    return result
+  }
+
+  @inlinable
+  public __consuming func union<S: Sequence>(_ other: __owned S) -> Self
+  where S.Element == Element {
+    var result = self
+    result.formUnion(other)
+    return result
+  }
+
+  @inlinable
+  public mutating func formUnion<T: CxxUniqueSet>(_ other: __owned T) where T.Element == Element {
+    var iterator = other.__beginUnsafe()
+
+    while iterator != other.__endUnsafe() {
+      if !self.contains(iterator.pointee) {
+        self.__insertUnsafe(iterator.pointee)
+      }
+      iterator = iterator.successor()
+    }
+  }
+
+  @inlinable
+  public mutating func formUnion<S: Sequence>(_ other: __owned S)
+  where S.Element == Element {
+    for item in other {
+      self.__insertUnsafe(item)
+    }
+  }
+
+  @inlinable
+  public __consuming func intersection<T: CxxUniqueSet>(_ other: T) -> Self where T.Element == Element {
+    var result = Self()
+
+    if self.size() < other.size() {
+      var iterator = self.__beginUnsafe()
+      while iterator != self.__endUnsafe() {
+        if other.contains(iterator.pointee) {
+          result.__insertUnsafe(iterator.pointee)
+        }
+        iterator = iterator.successor()
+      }
+    } else {
+      var iterator = other.__beginUnsafe()
+      while iterator != other.__endUnsafe() {
+        if self.contains(iterator.pointee) {
+          result.__insertUnsafe(iterator.pointee)
+        }
+        iterator = iterator.successor()
+      }
+    }
+
+    return result
+  }
+
+  @inlinable
+  public __consuming func intersection<S: Sequence>(_ other: S) -> Self
+  where S.Element == Element {
+    var result = Self()
+    for item in other where self.contains(item) {
+      result.__insertUnsafe(item)
+    }
+    return result
+  }
+
+  @inlinable
+  public mutating func formIntersection<T: CxxUniqueSet>(_ other: T)
+  where T.Element == Element {
+    self = self.intersection(other)
+  }
+
+  @inlinable
+  public mutating func formIntersection<S: Sequence>(_ other: S)
+  where S.Element == Element {
+    self = self.intersection(other)
+  }
+
+  @inlinable
+  public __consuming func subtracting<T: CxxUniqueSet>(_ other: T) -> Self
+  where T.Element == Element {
+    var result = self
+    result.subtract(other)
+    return result
+  }
+
+  @inlinable
+  public __consuming func subtracting<S: Sequence>(_ other: S) -> Self
+  where S.Element == Element {
+    var result = self
+    result.subtract(other)
+    return result
+  }
+
+  @inlinable
+  public mutating func subtract<T: CxxUniqueSet>(_ other: T)
+  where T.Element == Element {
+    var iterator = other.__beginUnsafe()
+    while iterator != other.__endUnsafe() {
+      self.erase(iterator.pointee)
+      iterator = iterator.successor()
+    }
+  }
+
+  @inlinable
+  public mutating func subtract<S: Sequence>(_ other: S)
+  where S.Element == Element {
+    for item in other {
+      self.erase(item)
+    }
+  }
+
+  @inlinable
+  public func isSubset<T: CxxUniqueSet>(of other: T) -> Bool where T.Element == Element {
+    guard self.size() <= other.size() else { return false }
+    var iterator = self.__beginUnsafe()
+    while iterator != self.__endUnsafe() {
+      if !other.contains(iterator.pointee) {
+        return false
+      }
+      iterator = iterator.successor()
+    }
+    return true
+  }
+
+  @inlinable
+  public func isSubset<S: Sequence>(of possibleSuperset: S) -> Bool
+  where S.Element == Element {
+    guard !self.isEmpty else { return true }
+
+    var seen = Self()
+    var seenCount: Int = 0
+    for element in possibleSuperset {
+      guard self.contains(element) else { continue }
+      let inserted = seen.__insertUnsafe(element)
+      if inserted.second {
+        seenCount += 1
+        if seenCount == self.size() {
+          return true
+        }
+      }
+    }
+    return false
+  }
+
+  @inlinable
+  public func isStrictSubset<T: CxxUniqueSet>(of other: T) -> Bool where T.Element == Element {
+    self.size() < other.size() && self.isSubset(of: other)
+  }
+
+  @inlinable
+  public func isStrictSubset<S: Sequence>(of possibleStrictSuperset: S) -> Bool
+  where S.Element == Element {
+    var seen = Self()
+    var seenCount = 0
+    var isStrict = false
+    for element in possibleStrictSuperset {
+      guard self.contains(element) else {
+        if !isStrict {
+          isStrict = true
+          if seenCount == self.size() { return true }
+        }
+        continue
+      }
+      let inserted = seen.__insertUnsafe(element)
+      if inserted.second {
+        seenCount += 1
+        if seenCount == self.size(), isStrict {
+          return true
+        }
+      }
+    }
+    return false
+  }
+
+  @inlinable
+  public func isSuperset<T: CxxUniqueSet>(of other: T) -> Bool where T.Element == Element {
+    return other.isSubset(of: self)
+  }
+
+  @inlinable
+  public func isSuperset<S: Sequence>(of possibleSubset: __owned S) -> Bool
+  where S.Element == Element {
+    return possibleSubset.allSatisfy { self.contains($0) }
+  }
+
+  @inlinable
+  public func isStrictSuperset<T: CxxUniqueSet>(of other: T) -> Bool where T.Element == Element {
+    if self.isEmpty { return false }
+    return self.size() > other.size() && other.isSubset(of: self)
+  }
+
+  @inlinable
+  public func isStrictSuperset<S: Sequence>(of possibleStrictSubset: S) -> Bool
+  where S.Element == Element {
+    if self.isEmpty { return false }
+    var seen = Self()
+    var seenCount = 0
+    for element in possibleStrictSubset {
+      guard self.contains(element) else { return false }
+      let inserted = seen.__insertUnsafe(element)
+      if inserted.second {
+        seenCount += 1
+        if seenCount == self.size() {
+          return false
+        }
+      }
+    }
+    return true
+  }
+
+  @inlinable
+  public func isDisjoint<T: CxxUniqueSet>(with other: T) -> Bool where T.Element == Element {
+    guard !self.isEmpty && !other.isEmpty else { return true }
+    if self.size() < other.size() {
+        var iterator = self.__beginUnsafe()
+        while iterator != self.__endUnsafe() {
+        if other.contains(iterator.pointee) {
+          return false
+        }
+        iterator = iterator.successor()
+      }
+    } else {
+      var iterator = other.__beginUnsafe()
+      while iterator != other.__endUnsafe() {
+        if self.contains(iterator.pointee) {
+          return false
+        }
+        iterator = iterator.successor()
+      }
+    }
+    return true
+  }
+
+  @inlinable
+  public func isDisjoint<S: Sequence>(with other: S) -> Bool
+  where S.Element == Element {
+    guard !self.isEmpty else { return true }
+    return other.allSatisfy { !self.contains($0) }
   }
 }
