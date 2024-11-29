@@ -206,10 +206,10 @@ extension CxxDictionary {
   }
 
   @inlinable
-  public mutating func merge(
-    _ other: __owned Self,
+  public mutating func merge<T: CxxDictionary>(
+    _ other: __owned T,
     uniquingKeysWith combine: (Value, Value) throws -> Value
-  ) rethrows {
+  ) rethrows where T.Key == Key, T.Value == Value {
     var iterator = other.__beginUnsafe()
     while iterator != other.__endUnsafe() {
       var iter = self.__findMutatingUnsafe(iterator.pointee.first)
@@ -244,10 +244,10 @@ extension CxxDictionary {
   }
 
   @inlinable
-  public __consuming func merging(
-    _ other: __owned Self,
+  public __consuming func merging<T: CxxDictionary>(
+    _ other: __owned T,
     uniquingKeysWith combine: (Value, Value) throws -> Value
-  ) rethrows -> Self {
+  ) rethrows -> Self where T.Key == Key, T.Value == Value {
     var result = self
     try result.merge(other, uniquingKeysWith: combine)
     return result

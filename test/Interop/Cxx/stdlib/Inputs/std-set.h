@@ -15,6 +15,10 @@ inline SetOfCInt initSetOfCIntSubset() { return {1, 5}; }
 inline SetOfCInt initSetOfCIntSuperset() { return {1, 3, 5, 7}; }
 inline SetOfCInt initSetOfCIntHasIntersection() { return {1, 5, 7}; }
 inline SetOfCInt initSetOfCIntDisjoint() { return {2, 4, 6}; }
+inline SetOfCInt initSetOfCIntCrossVerift() { return {2, 4, 6}; }
+inline SetOfCInt initSetOfCIntCrossVeriftStrictSuperset() {
+  return {2, 4, 6, 8};
+}
 
 inline UnorderedSetOfCInt initUnorderedSetOfCInt() { return {2, 4, 6}; }
 inline UnorderedSetOfCInt initUnorderedSetOfCInt2() { return {4, 8}; }
@@ -27,6 +31,12 @@ inline UnorderedSetOfCInt initUnorderedSetOfCIntHasIntersection() {
   return {2, 4, 8};
 }
 inline UnorderedSetOfCInt initUnorderedSetOfCIntDisjoint() { return {1, 3, 5}; }
+inline UnorderedSetOfCInt initUnorderedSetOfCIntCrossVerift() {
+  return {1, 3, 5};
+}
+inline UnorderedSetOfCInt initUnorderedSetOfCIntCrossVeriftStrictSuperset() {
+  return {1, 3, 5, 7};
+}
 inline MultisetOfCInt initMultisetOfCInt() { return {2, 2, 4, 6}; }
 
 #endif // TEST_INTEROP_CXX_STDLIB_INPUTS_STD_SET_H

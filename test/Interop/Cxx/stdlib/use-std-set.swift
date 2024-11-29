@@ -219,8 +219,13 @@ StdSetTestSuite.test("SetOfCInt.formUnion") {
     var s = initSetOfCInt()
 
     s.formUnion([2, 4, 6])
+    s.formUnion(Set(arrayLiteral: 7, 8, 9))
+    s.formUnion(SetOfCInt(arrayLiteral: 10, 11, 12))
 
-    for i in CInt(1)...6 {
+    // Test with CxxUniqueSet, which type is not equal to Self.
+    s.formUnion(UnorderedSetOfCInt(arrayLiteral: 13, 14, 15))
+
+    for i in CInt(1)...15 {
         expectTrue(s.contains(i))
     }
 }
@@ -229,8 +234,13 @@ StdSetTestSuite.test("UnorderedSetOfCInt.formUnion") {
     var s = initUnorderedSetOfCInt()
 
     s.formUnion([1, 3, 5])
+    s.formUnion(Set(arrayLiteral: 7, 8, 9))
 
-    for i in CInt(1)...6 {
+    // Test with CxxUniqueSet, which type is not equal to Self.
+    s.formUnion(SetOfCInt(arrayLiteral: 10, 11, 12))
+    s.formUnion(UnorderedSetOfCInt(arrayLiteral: 13, 14, 15))
+
+    for i in CInt(1)...15 {
         expectTrue(s.contains(i))
     }
 }
@@ -248,6 +258,10 @@ StdSetTestSuite.test("SetOfCInt.intersection(set)") {
     expectFalse(r2.contains(1))
     expectTrue(r2.contains(3))
     expectFalse(r2.contains(5))
+
+    // Test with CxxUniqueSet, which type is not equal to Self.
+    let r3 = s.intersection(initUnorderedSetOfCInt())
+    expectTrue(r3.isEmpty)
 }
 
 StdSetTestSuite.test("UnorderedSetOfCInt.intersection(set)") {
@@ -261,7 +275,11 @@ StdSetTestSuite.test("UnorderedSetOfCInt.intersection(set)") {
     let r2 = s.intersection(initUnorderedSetOfCInt2())
     expectFalse(r2.contains(2))
     expectTrue(r2.contains(4))
-    expectFalse(r2.contains(6))  
+    expectFalse(r2.contains(6))
+
+    // Test with CxxUniqueSet, which type is not equal to Self.
+    let r3 = s.intersection(initSetOfCInt())
+    expectTrue(r3.isEmpty)
 }
 
 StdSetTestSuite.test("SetOfCInt.intersection") {
@@ -288,33 +306,15 @@ StdSetTestSuite.test("UnorderedSetOfCInt.intersection") {
     expectTrue(r2.contains(6))  
 }
 
-StdSetTestSuite.test("SetOfCInt.formIntersection") {
-    var s = initSetOfCInt()
-
-    s.formIntersection([1, 5])
-    expectTrue(s.contains(1))
-    expectFalse(s.contains(3))
-    expectTrue(s.contains(5))
-
-    s.formIntersection([2, 4, 6])
-    expectTrue(s.isEmpty)
-}
-
-StdSetTestSuite.test("UnorderedSetOfCInt.formIntersection") {
-    var s = initUnorderedSetOfCInt()
-    
-    s.formIntersection([2, 6])
-
-    expectTrue(s.contains(2))
-    expectFalse(s.contains(4))
-    expectTrue(s.contains(6)) 
-
-    s.formIntersection([1, 3, 5])
-    expectTrue(s.isEmpty)
-}
+// `formIntersection` is implemented with `intersection`, so we can skip this test
 
 StdSetTestSuite.test("SetOfCInt.subtract") {
     var s = initSetOfCInt()
+
+    s.subtract(initUnorderedSetOfCInt())
+    expectTrue(s.contains(1))
+    expectTrue(s.contains(3))
+    expectTrue(s.contains(5))
 
     s.subtract([1, 3])
     
@@ -324,10 +324,16 @@ StdSetTestSuite.test("SetOfCInt.subtract") {
 
     s.subtract([5])
     expectFalse(s.contains(5))
+    expectTrue(s.isEmpty)
 }
 
 StdSetTestSuite.test("UnorderedSetOfCInt.subtract") {
     var s = initUnorderedSetOfCInt()
+
+    s.subtract(initSetOfCInt())
+    expectTrue(s.contains(2))
+    expectTrue(s.contains(4))
+    expectTrue(s.contains(6))
 
     s.subtract([2, 4])
     
@@ -337,6 +343,7 @@ StdSetTestSuite.test("UnorderedSetOfCInt.subtract") {
 
     s.subtract([6])
     expectFalse(s.contains(6))
+    expectTrue(s.isEmpty)
 }
 
 StdSetTestSuite.test("SetOfCInt.isSubset(set)") {
@@ -347,6 +354,12 @@ StdSetTestSuite.test("SetOfCInt.isSubset(set)") {
   expectTrue(m.isSubset(of: m))
   expectTrue(m.isSubset(of: initSetOfCIntSuperset()))
   expectFalse(m.isSubset(of: initSetOfCIntHasIntersection()))
+
+  // Test with CxxUniqueSet, which type is not equal to Self.
+  expectFalse(m.isSubset(of: initUnorderedSetOfCIntEmpty()))
+  expectFalse(m.isSubset(of: initUnorderedSetOfCIntSubset()))
+  expectTrue(m.isSubset(of: initUnorderedSetOfCIntCrossVerift()))
+  expectTrue(m.isSubset(of: initUnorderedSetOfCIntCrossVeriftStrictSuperset()))
 }
 
 StdSetTestSuite.test("UnorderedSetOfCInt.isSubset(set)") {
@@ -357,6 +370,12 @@ StdSetTestSuite.test("UnorderedSetOfCInt.isSubset(set)") {
   expectTrue(m.isSubset(of: m))
   expectTrue(m.isSubset(of: initUnorderedSetOfCIntSuperset()))
   expectFalse(m.isSubset(of: initUnorderedSetOfCIntHasIntersection()))
+
+  // Test with CxxUniqueSet, which type is not equal to Self.
+  expectFalse(m.isSubset(of: initSetOfCIntEmpty()))
+  expectFalse(m.isSubset(of: initSetOfCIntSubset()))
+  expectTrue(m.isSubset(of: initSetOfCIntCrossVerift()))
+  expectTrue(m.isSubset(of: initSetOfCIntCrossVeriftStrictSuperset()))
 }
 
 StdSetTestSuite.test("SetOfCInt.isSubset") {
@@ -389,6 +408,12 @@ StdSetTestSuite.test("SetOfCInt.isStrictSubset(set)") {
   expectFalse(m.isStrictSubset(of: m))
   expectTrue(m.isStrictSubset(of: initSetOfCIntSuperset()))
   expectFalse(m.isStrictSubset(of: initSetOfCIntHasIntersection()))
+
+  // Test with CxxUniqueSet, which type is not equal to Self.
+  expectFalse(m.isStrictSubset(of: initUnorderedSetOfCIntEmpty()))
+  expectFalse(m.isStrictSubset(of: initUnorderedSetOfCIntSubset()))
+  expectFalse(m.isStrictSubset(of: initUnorderedSetOfCIntCrossVerift()))
+  expectTrue(m.isStrictSubset(of: initUnorderedSetOfCIntCrossVeriftStrictSuperset()))
 }
 
 StdSetTestSuite.test("UnorderedSetOfCInt.isStrictSubset(set)") {
@@ -399,6 +424,12 @@ StdSetTestSuite.test("UnorderedSetOfCInt.isStrictSubset(set)") {
   expectFalse(m.isStrictSubset(of: m))
   expectTrue(m.isStrictSubset(of: initUnorderedSetOfCIntSuperset()))
   expectFalse(m.isStrictSubset(of: initUnorderedSetOfCIntHasIntersection()))
+
+  // Test with CxxUniqueSet, which type is not equal to Self.
+  expectFalse(m.isStrictSubset(of: initSetOfCIntEmpty()))
+  expectFalse(m.isStrictSubset(of: initSetOfCIntSubset()))
+  expectFalse(m.isStrictSubset(of: initSetOfCIntCrossVerift()))
+  expectTrue(m.isStrictSubset(of: initSetOfCIntCrossVeriftStrictSuperset()))
 }
 
 StdSetTestSuite.test("SetOfCInt.isStrictSubset") {
@@ -435,6 +466,12 @@ StdSetTestSuite.test("SetOfCInt.isSuperset(set)") {
   expectTrue(m.isSuperset(of: m))
   expectFalse(m.isSuperset(of: initSetOfCIntSuperset()))
   expectFalse(m.isSuperset(of: initSetOfCIntHasIntersection()))
+
+  // Test with CxxUniqueSet, which type is not equal to Self.
+  expectTrue(m.isSuperset(of: initUnorderedSetOfCIntEmpty()))
+  expectFalse(m.isSuperset(of: initUnorderedSetOfCIntSubset()))
+  expectTrue(m.isSuperset(of: initUnorderedSetOfCIntCrossVerift()))
+  expectTrue(initUnorderedSetOfCIntCrossVeriftStrictSuperset().isSuperset(of: m))
 }
 
 StdSetTestSuite.test("UnorderedSetOfCInt.isSuperset(set)") {
@@ -445,6 +482,12 @@ StdSetTestSuite.test("UnorderedSetOfCInt.isSuperset(set)") {
   expectTrue(m.isSuperset(of: m))
   expectFalse(m.isSuperset(of: initUnorderedSetOfCIntSuperset()))
   expectFalse(m.isSuperset(of: initUnorderedSetOfCIntHasIntersection()))
+
+  // Test with CxxUniqueSet, which type is not equal to Self.
+  expectTrue(m.isSuperset(of: initSetOfCIntEmpty()))
+  expectFalse(m.isSuperset(of: initSetOfCIntSubset()))
+  expectTrue(m.isSuperset(of: initSetOfCIntCrossVerift()))
+  expectTrue(initSetOfCIntCrossVeriftStrictSuperset().isSuperset(of: m))
 }
 
 StdSetTestSuite.test("SetOfCInt.isSuperset") {
@@ -477,6 +520,12 @@ StdSetTestSuite.test("SetOfCInt.isStrictSuperset(set)") {
   expectFalse(m.isStrictSuperset(of: m))
   expectFalse(m.isStrictSuperset(of: initSetOfCIntSuperset()))
   expectFalse(m.isStrictSuperset(of: initSetOfCIntHasIntersection()))
+
+  // Test with CxxUniqueSet, which type is not equal to Self.
+  expectTrue(m.isStrictSuperset(of: initUnorderedSetOfCIntEmpty()))
+  expectFalse(m.isStrictSuperset(of: initUnorderedSetOfCIntSubset()))
+  expectFalse(m.isStrictSuperset(of: initUnorderedSetOfCIntCrossVerift()))
+  expectTrue(initUnorderedSetOfCIntCrossVeriftStrictSuperset().isStrictSuperset(of: m))
 }
 
 StdSetTestSuite.test("UnorderedSetOfCInt.isStrictSuperset(set)") {
@@ -487,6 +536,12 @@ StdSetTestSuite.test("UnorderedSetOfCInt.isStrictSuperset(set)") {
   expectFalse(m.isStrictSuperset(of: m))
   expectFalse(m.isStrictSuperset(of: initUnorderedSetOfCIntSuperset()))
   expectFalse(m.isStrictSuperset(of: initUnorderedSetOfCIntHasIntersection()))
+
+  // Test with CxxUniqueSet, which type is not equal to Self.
+  expectTrue(m.isStrictSuperset(of: initSetOfCIntEmpty()))
+  expectFalse(m.isStrictSuperset(of: initSetOfCIntSubset()))
+  expectFalse(m.isStrictSuperset(of: initSetOfCIntCrossVerift()))
+  expectTrue(initSetOfCIntCrossVeriftStrictSuperset().isStrictSuperset(of: m))
 }
 
 StdSetTestSuite.test("SetOfCInt.isStrictSuperset") {
@@ -524,6 +579,12 @@ StdSetTestSuite.test("SetOfCInt.isDisjoint(set)") {
   expectFalse(m.isDisjoint(with: initSetOfCIntSuperset()))
   expectFalse(m.isDisjoint(with: initSetOfCIntHasIntersection()))
   expectTrue(m.isDisjoint(with: initSetOfCIntDisjoint()))
+
+  // Test with CxxUniqueSet, which type is not equal to Self.
+  expectTrue(m.isDisjoint(with: initUnorderedSetOfCIntEmpty()))
+  expectTrue(m.isDisjoint(with: initUnorderedSetOfCIntSubset()))
+  expectFalse(m.isDisjoint(with: initUnorderedSetOfCIntCrossVerift()))
+  expectFalse(m.isDisjoint(with: initUnorderedSetOfCIntCrossVeriftStrictSuperset()))
 }
 
 StdSetTestSuite.test("UnorderedSetOfCInt.isDisjoint(set)") {
@@ -535,6 +596,12 @@ StdSetTestSuite.test("UnorderedSetOfCInt.isDisjoint(set)") {
   expectFalse(m.isDisjoint(with: initUnorderedSetOfCIntSuperset()))
   expectFalse(m.isDisjoint(with: initUnorderedSetOfCIntHasIntersection()))
   expectTrue(m.isDisjoint(with: initUnorderedSetOfCIntDisjoint()))
+
+  // Test with CxxUniqueSet, which type is not equal to Self.
+  expectTrue(m.isDisjoint(with: initSetOfCIntEmpty()))
+  expectTrue(m.isDisjoint(with: initSetOfCIntSubset()))
+  expectFalse(m.isDisjoint(with: initSetOfCIntCrossVerift()))
+  expectFalse(m.isDisjoint(with: initSetOfCIntCrossVeriftStrictSuperset()))
 }
 
 StdSetTestSuite.test("SetOfCInt.isDisjoint") {
